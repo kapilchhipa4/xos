@@ -13,7 +13,13 @@ ireturn;
 
 */
 
+// 2. timer rutine
 
+/*
+print "TIMER";
+ireturn;
+
+*/
 
 3.
 // we can invoked interrupt by system calls but till now didnt study system call thats why we are using .xsm file directly
@@ -63,3 +69,9 @@ load (12, 6);
 
 
 */
+
+
+Note-- when we run xsm machine with ./xsm--timer=0 then timer will be desable.
+      in case of ./xsm timer interrupt will invoked after each 10 instruction
+      we can set number manually also. ex ./xsm --timer=20
+      bydefault it is 10 instruction
