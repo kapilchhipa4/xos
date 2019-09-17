@@ -18,9 +18,7 @@ alias argument S2;
 argument = [physicalSp - 3];
 
 
-if(sysCallNo == 1)
- 	{
-
+if(sysCallNo == 1) then
 // if system call number is 1 then we will create file else delete file
 alias flag S4;
 flag = 0;
@@ -88,17 +86,12 @@ if(flag == 0) then
 		ireturn;
 		
 	endif;	
-	
-endif;
-ireturn;
-
-		}
 
 else if(sysCallNo==4)
-{
 	print("this is delete system call");
-	ireturn;
-}			 		
+endif;
+ireturn;
+			 		
 
 
 
