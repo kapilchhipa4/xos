@@ -1,0 +1,87 @@
+// in this state we will run apl program 
+1. write os startup code
+2. write apl program
+3. write interrupt 7 rutine to halt the program
+4. write exception Handler code
+
+// 1. startup code
+// load it as --os flag
+/*
+[READY_LIST + 0] = 0;
+[READY_LIST + 1] = 2;
+SP = 3 * 512;
+[28 * 512] = 0;
+PTBR = 1024; 
+PTLR = 4; 
+load(25,21); 
+load(26,22); 
+load(27,23);
+load(9,3);
+load(10,4);
+load(23,17);
+load(24,18);
+
+[PTBR + 0] = 25; 
+[PTBR + 1] = "01";
+
+[PTBR + 2] = 26; 
+[PTBR + 3] = "01";	
+
+[PTBR + 4] = 27; 
+[PTBR + 5] = "01";	
+
+[PTBR + 6] = 28; 
+[PTBR + 7] = "01"; 
+
+
+
+
+*/
+
+// 2: apl program
+load it as --init flag .
+/*
+decl 
+	integer n;
+enddecl
+integer main(){
+	read(n);
+	integer i,j,flag;
+	i=2;
+	while(i<=n) do
+		flag=0;
+		j=2;
+		while(j*j<=i) do
+			if(i%j==0) then
+				flag=1;
+				break;
+			endif;
+			j=j+1;
+		endwhile;
+		if(flag!=1) then
+			print(i);
+		endif;
+	i=i+1;
+	endwhile;
+return 0;
+}
+
+
+*/
+
+
+// 3. interrupt 7 rutine
+ /*
+ 
+ halt;
+ 
+ /*
+ 
+ // 4. Exception Handler 
+//load it as --exhandler flag 
+ /*
+
+ halt;
+ 
+ 
+ */
