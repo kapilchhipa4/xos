@@ -1,0 +1,157 @@
+// in this stage we will implement create system call to create files1
+
+1. implement interrupt rutime 1 for create system call
+2. os startup code
+3. user program in apl
+
+// 1. 
+load --int=1 as flag
+/*
+
+alias physicalSp S0;
+
+physicalSp = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+alias sysCallNo S1;
+sysCallNo = physicalSp - 1;
+
+alias argument S2;
+argument = [physicalSp - 3];
+
+
+if(sysCallNo == 1)
+ 	{
+
+// if system call number is 1 then we will create file else delete file
+alias flag S4;
+flag = 0;
+alias i S3;
+i = 0;
+while(i <= 63) do 
+	if([FAT + 8 * i + 2] != -1) then 
+		if(argument == [FAT + 8 * i + 0]) then 
+			flag = 1;
+			break;
+		endif;
+	endif;
+	i = i + 1;
+endwhile;
+if(flag == 1) then 
+	[physicalSp - 2] = 0;
+	ireturn;
+endif;
+// otherwise New file creating 
+if(flag == 0) then 
+	alias DiskFreeList S5;
+	alias empty S6;
+	empty = 1; //Not empty
+	DiskFreeList = 3072;
+	i = 25;
+	while(i <= 447) do 
+		if([DiskFreeList + i] == 0) then 
+			empty = 0;
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+	alias freeDiskBlock S7;
+	freeDiskBlock = i; //i'th block relative
+	
+	//Free disk block not found 
+	if(empty == 1) then 
+		[physicalSp - 2] = (-1);
+		ireturn;
+	endif;
+	//Free disk block found
+	if(empty == 0) then 
+		i = 0;
+		while(i <= 63) do 
+			if([FAT + 8 * i + 2] == -1) then 
+				break;
+			endif;
+			i = i + 1;
+		endwhile;
+		[FAT + 8 * i + 0] = argument;
+		[FAT + 8 * i + 1] = 0;
+		[FAT + 8 * i + 2] = freeDiskBlock;
+		load (1,freeDiskBlock);
+		alias j S8;
+		j = 0;
+		while(j <= 511) do 
+			[512 + j] = -1;
+			j = j + 1;
+		endwhile;
+		store (1,freeDiskBlock);
+		[DiskFreeList + freeDiskBlock] = 1;
+		store (5,19);
+		store (6,20);
+		[physicalSp - 2] = 0;
+		ireturn;
+		
+	endif;	
+	
+endif;
+ireturn;
+
+		}
+
+else if(sysCallNo==4)
+{
+	print("this is delete system call");
+	ireturn;
+}			 		
+
+
+
+
+
+
+//2. os startup code
+/*
+
+[READY_LIST + 0] = 0;
+load(25,21); 
+load(26,22); 
+load(27,23);
+PTBR = 1024; 
+PTLR = 4; 
+[PTBR + 0] = 25; 
+[PTBR + 1] = "01";	
+[PTBR + 2] = 26; 
+[PTBR + 3] = "01";	
+[PTBR + 4] = 27; 
+[PTBR + 5] = "01";	
+[PTBR + 6] = 28; 
+[PTBR + 7] = "01"; 
+[READY_LIST + 1] = 2;
+SP = 3 * 512;
+[28 * 512] = 0;
+load (11, 5);
+load (12, 6);
+load (23, 17);
+load (24, 18);
+load (5, 19);
+load (6, 20);
+load (13, 7);
+load (14, 8);
+load (15, 9);
+load (16, 10);
+load (17, 11);
+load (18, 12);
+load (19, 13);
+load (20, 14);
+
+*/
+
+3. user program
+/*
+decl 
+	integer status;
+enddecl
+integer main()
+{
+	status=Create("myfile1.dat");
+	print(status);
+	return 0;
+}
+
+*/
