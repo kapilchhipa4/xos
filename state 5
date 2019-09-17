@@ -1,0 +1,65 @@
+// in this state we will implement timer interrupt ( hardware interrupt ) and interrupt 1 rutine ( software interrupt)
+
+1. interrupt 1 rutine
+2. timer interrupt rutine
+3. apl program (user program)
+4. startup code
+
+// 1. interrupt 1 rutine
+// load it as --int=1 flag
+/*
+print "In INT 1";
+ireturn;
+
+*/
+
+
+
+3.
+// we can invoked interrupt by system calls but till now didnt study system call thats why we are using .xsm file directly
+load it as --init flag
+/*
+START
+MOV R0, "Before INT"
+OUT R0
+INT 1
+MOV R0, "After INT"
+OUT R0
+INT 7
+END
+
+
+*/
+
+// 4. startup code
+// startup code will almost same as previous state . but have to load timer interrupt and int1 also
+
+/*
+
+[READY_LIST + 0] = 0;
+[READY_LIST + 1] = 2;
+SP = 3 * 512;
+[28 * 512] = 0;
+PTBR = 1024; 
+PTLR = 4; 
+load(25,21); 
+load(26,22); 
+load(27,23);
+load(9,3);
+load(10,4);
+load(23,17);
+load(24,18);
+
+[PTBR + 0] = 25; 
+[PTBR + 1] = "01";	
+[PTBR + 2] = 26; 
+[PTBR + 3] = "01";	
+[PTBR + 4] = 27; 
+[PTBR + 5] = "01";	
+[PTBR + 6] = 28; 
+[PTBR + 7] = "01"; 
+load (11, 5);// interrupt rutine
+load (12, 6);
+
+
+*/
