@@ -1,1 +1,161 @@
+// in this stage we will implement multiprogramming.
+// timer interrupt rutine will be used for process scheduling.
+// 1. two user program to run simultaneously
+// 2. os startup code which load both process 
+// 3. timer interrupt rutine to schedule the process
+// 4. interrupt 7 rutine to halt the machine .
+
+// 1. first program
+
+/*
+
+decl 
+	integer i;
+enddecl
+integer main(){
+	i=2;
+	while(i<=20) do
+		print(i);
+		i=i+2;
+	endwhile;
+return 0;
+}
+
+*/
+
+// second program
+
+/*
+
+decl 
+	integer i;
+enddecl
+integer main(){
+	i=1;
+	print("process 0");
+	while(i<=20) do
+		print(i);
+		i=i+2;
+	endwhile;
+return 0;
+}
+
+*/
+
+// 2. startup code
+
+/*
+[READY_LIST + 0] = 0;
+[READY_LIST + 1] = 2;
+SP = 3 * 512;
+[28 * 512] = 0;
+PTBR = 1024; 
+PTLR = 4; 
+load(25,21); 
+load(26,22); 
+load(27,23);
+load(9,3);
+load(10,4);
+load(23,17);
+load(24,18);
+
+[PTBR + 0] = 25; 
+[PTBR + 1] = "01";	
+[PTBR + 2] = 26; 
+[PTBR + 3] = "01";	
+[PTBR + 4] = 27; 
+[PTBR + 5] = "01";	
+[PTBR + 6] = 28; 
+[PTBR + 7] = "01"; 
+load (11, 5);
+load (12, 6);
+
+[READY_LIST + 32] = 1;
+load(29,25);
+alias PTBR_Process1 S0;
+PTBR_Process1 = 1024 + 1 * 8;
+[PTBR_Process1 + 0]=29;
+[PTBR_Process1 + 1]="01";
+[PTBR_Process1 + 2]=-1;
+[PTBR_Process1 + 3]="00";
+[PTBR_Process1 + 4]=-1;
+[PTBR_Process1 + 5]="00";
+[PTBR_Process1 + 6]=30;
+[PTBR_Process1 + 7]="01";
+[READY_LIST + 33] = 1;
+[READY_LIST + 37] =PTBR_Process1;
+[READY_LIST + 38] = 4;
+[READY_LIST + 34] = 3*512;
+[READY_LIST + 35] = 3*512;
+[READY_LIST + 36] = 0;
+load(9,3);
+load(10,4);
+
+ireturn;
+
+
+*/
+
+
+// 3. timer interrupt rutine
+
+/*
+alias currentPID S0;
+currentPID = (PTBR - 1024) / 8;
+alias currentPCB S1;
+currentPCB = READY_LIST + 32 * currenPID;
+[ currentPCB + 1 ] = 1;
+[ currentPCB + 2 ] = BP;
+[ currentPCB + 3 ] = SP - 1;	
+alias physicalSP S2;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+[ currentPCB + 4 ] = [ physicalSP ];
+[ currentPCB + 5 ] = PTBR;
+[ currentPCB + 6 ] = PTLR ;
+[ currentPCB + 7 ] = R0;
+[ currentPCB + 8 ] = R1;
+[ currentPCB + 9 ] = R2;
+[ currentPCB + 10 ] = R3;
+[ currentPCB + 11 ] = R4;
+[ currentPCB + 12 ] = R5;
+[ currentPCB + 13 ] = R6;
+[ currentPCB + 14 ] = R7;
+alias newPCB S3;
+alias newPID S4;
+newPID = (currentPID + 1) % 2;
+newPCB = READY_LIST + newPID * 32;
+print("process is ");
+print(newPID);
+BP = [newPCB + 2];
+SP = [newPCB + 3];
+PTBR = [newPCB + 5];
+PTLR = [newPCB + 6];
+R0 = [newPCB + 7];
+R1 = [newPCB + 8];
+R2 = [newPCB + 9];
+R3 = [newPCB + 10];
+R4 = [newPCB + 11];
+R5 = [newPCB + 12];
+R6 = [newPCB + 13];
+R7 = [newPCB + 14];
+
+SP = SP + 1;
+
+alias newphysicalSP S2;
+newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+[ newphysicalSP ] = [ newPCB + 4 ];
+[newPCB + 1] = 2;
+ireturn;
+
+*/
+
+
+
+
+
+
+
+
+
+
 
