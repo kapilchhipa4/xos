@@ -1,0 +1,91 @@
+alias physicalSp S0;
+physicalSp = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+alias sysCallNo S1;
+sysCallNo = [physicalSp - 1];
+
+alias fileDescriptor S2;
+alias newLseek S3;
+
+newLseek = [physicalSp - 3];
+fileDescriptor = [physicalSp - 4];
+
+
+//Seek System Call
+if(sysCallNo == 6) then
+    //File Descriptor is invalid 
+    if(fileDescriptor < 0 && fileDescriptor > 7)  then
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+    //PPOFT entry is invalid 
+    if([READY_LIST + 32 * 0 + 15 + fileDescriptor * 2 + 0] == -1) then 
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+    alias pointer S4;
+    pointer = [READY_LIST + 32 * 0 + 15 + fileDescriptor * 2 + 0];
+    alias fatindex S5;
+    fatindex = [FILE_TABLE + 2 * pointer + 0];
+    alias size S6;
+    size = [FAT + fatindex * 8 + 1];
+
+    //LSEEK position is not valid 
+    if(newLseek < 0 && newLseek > size) then
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+
+    //Successfully changed lseek position
+    [READY_LIST + 32 * 0 + 15 + fileDescriptor * 2 + 1] = newLseek;
+    ireturn;
+
+endif;
+
+//READ System CALL
+if(sysCallNo == 7) then
+    alias wordRead S3;
+    wordRead = [physicalSp - 3];
+ 
+    //File Descriptor is invalid 
+    if(fileDescriptor < 0 && fileDescriptor > 7)  then
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+
+     //PPOFT entry is invalid 
+    if([READY_LIST + 32 * 0 + 15 + fileDescriptor * 2 + 0] == -1) then 
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+
+    alias pointer S4;
+    alias lseek S5;
+    pointer = [READY_LIST + 32 * 0 + 15 + fileDescriptor *  2 + 0];
+    lseek = [READY_LIST + 32 * 0 + 15 + fileDescriptor *  2 + 1];
+
+    alias fatindex S6;
+    fatindex = [FILE_TABLE + pointer * 2 + 0];
+    alias basicblock S7;
+    basicblock = [FAT + fatindex * 8 + 2];
+    load(1,basicblock);
+
+    //End of file is reached
+    if(lseek == [FAT + fatindex * 8 + 1]) then 
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+
+    alias datablock S8;
+    datablock = [512 + (lseek / 512)];
+    load(1,datablock);
+    print([512 + (lseek % 512)]);
+    breakpoint;
+    [physicalSp - 3] = [512 + (lseek % 512)];
+
+    //Increamenting lseek position by 1
+
+    [READY_LIST + 32 * 0 + 15 + fileDescriptor * 2 + 1] = [READY_LIST + 32 * 0 + 15 + fileDescriptor * 2 + 1] + 1;
+    [physicalSp - 2] = 0;
+    ireturn;
+endif;
