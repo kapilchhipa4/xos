@@ -1,0 +1,168 @@
+alias physicalSp S0;
+
+physicalSp = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+alias sysCallNo S1;
+sysCallNo = [physicalSp - 1];
+
+alias argument S2;
+argument = [physicalSp - 3];
+
+//Create system call
+if(sysCallNo == 1) then
+alias flag S4;
+flag = 0;
+alias i S3;
+i = 0;
+while(i <= 63) do 
+	if([FAT + 8 * i + 2] != -1) then 
+		if(argument == [FAT + 8 * i + 0]) then 
+			flag = 1;
+			break;
+		endif;
+	endif;
+	i = i + 1;
+endwhile;
+//New file creating 
+if(flag == 0) then 
+	alias DiskFreeList S5;
+	alias empty S6;
+	empty = 1; //Not empty
+	DiskFreeList = 3072;
+	i = 25;
+	while(i <= 447) do 
+		if([DiskFreeList + i] == 0) then 
+			empty = 0;
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+	alias freeDiskBlock S7;
+	freeDiskBlock = i; //i'th block relative
+	
+	//Free disk block not found 
+	if(empty == 1) then 
+		[physicalSp - 2] = (-1);
+		ireturn;
+	endif;
+	//Free disk block found
+	if(empty == 0) then 
+		i = 0;
+		while(i <= 63) do 
+			if([FAT + 8 * i + 2] == -1) then 
+				break;
+			endif;
+			i = i + 1;
+		endwhile;
+		[FAT + 8 * i + 0] = argument;
+		[FAT + 8 * i + 1] = 0;
+		[FAT + 8 * i + 2] = freeDiskBlock;
+		load (1,freeDiskBlock);
+		alias j S8;
+		j = 0;
+		while(j <= 511) do 
+			[512 + j] = -1;
+			j = j + 1;
+		endwhile;
+		store (1,freeDiskBlock);
+		[DiskFreeList + freeDiskBlock] = 1;
+		store (5,19);
+		store (6,20);
+		[physicalSp - 2] = 0;
+		ireturn;
+		
+	endif;	
+	
+endif;
+//Existing file 
+if(flag == 1) then 
+	[physicalSp - 2] = 0;
+endif;
+ireturn;
+endif;
+
+//Delete system call
+if(sysCallNo == 4) then 
+	alias i S3;
+	alias fatindex S4;
+	fatindex = -1; //Not found initially
+	i = 0;
+	while(i < 64) do
+		if([FAT + i * 8 + 2] != -1) then 
+			if([FAT + i * 8 + 0] == argument) then
+				fatindex = i;
+				break;
+			endif;
+		endif;
+		i = i + 1;
+	endwhile;
+	
+	//Correct Execution till now 
+
+	//fatindex * 8
+	//File not found 
+	if(fatindex == -1) then 
+		[physicalSp - 2] = -1;
+		ireturn;
+	endif;	
+	
+	//Correct Execution till now 
+
+
+	//File found in FAT table
+	alias found S7;
+	found = 0;//initially not found in System wide open file table 
+	i = 0;
+	while(i < 64) do 
+		if(fatindex == [FILE_TABLE + i * 2 + 0] ) then 
+			found = 1;
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+
+	//File is opened 
+	if(found == 1) then 
+		[physicalSp - 2] = -1;
+		ireturn;
+	endif;
+
+
+	//Correct Execution  till now
+
+ 
+	//File not opened
+
+	//Loading basic block of file
+	alias basicblock S5;
+	basicblock = [FAT + 8 * fatindex + 2];
+	load (1,basicblock);
+	alias j S6;
+	alias temp S7;
+	i = 0;
+	j = 0;
+	while(i < 512) do 
+		if([512 + i] != -1) then 
+			temp = [512 + i];
+			load(1,[512 + i]);
+			j = 0;
+			while(j < 512) do	
+				[512 + j] = "";
+				j = j + 1;
+			endwhile;
+			store(1,temp);
+			load(1,basicblock);
+
+			[3072 + [512 + i]] = 0; //setting data block in DiskFreeList
+			[512 + i] = -1; //invalidating data block number in basic block
+			endif;
+		i = i + 1;
+	endwhile;
+	[3072 + basicblock] = 0;
+	[FAT + 8 * fatindex + 0] = -1;
+	[FAT + 8 * fatindex + 2] = -1;
+	store(5,19);
+	store(6,20);
+	[physicalSp - 2] = 0;
+	ireturn;
+
+endif;		
