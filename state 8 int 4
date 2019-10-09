@@ -1,0 +1,83 @@
+alias physicalSP S0;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+alias sysCallNo S1;
+sysCallNo = [physicalSP - 1];
+alias arg1 S2;
+alias arg2 S3;
+arg2 = [physicalSP - 3];
+arg1 = [physicalSP - 4];
+
+breakpoint;
+//Correct Execution
+if(sysCallNo == 5) then
+    //Invalid File Descriptor
+    if(arg1 < 0 && arg1 > 7) then
+        [physicalSP - 2] = -1;
+        ireturn;
+    endif;
+
+    //Checking file Descriptor in PCB
+    //Entry is invalid 
+    if([READY_LIST + 32 * 0 + 15 + arg1 * 2 + 0] == -1) then 
+        [physicalSP - 2] = -1;
+        ireturn;
+    endif;
+
+    alias pointer S4;
+    alias lseek S5;
+    pointer = [READY_LIST + 32 * 0 + 15 + arg1 * 2 + 0];
+    lseek = [READY_LIST + 32 * 0 + 15 + arg1 * 2 + 1];
+
+    //Correct Execution till now 
+
+    alias fatindex S6;
+    //getting fat entry from SWOFT
+    fatindex = [FILE_TABLE + 2 * pointer + 0];
+
+
+    //getting basicblock from FAT copy of memory
+    alias basicblock S7;
+    basicblock = [FAT + 8 * fatindex + 2];
+
+    load(1,basicblock);
+    alias datablock S8;
+    datablock = [512 + lseek/512];
+    //allocating new block if entry is invalid 
+    alias i S9;
+    if(datablock == -1) then 
+        //Searching for free block in DF
+        i = 25;
+        while(i < 448) do 
+            if([3072 + i] == 0) then 
+                break;
+            endif;
+            i = i + 1;
+        endwhile;
+        //Not found 
+        if(i > 447) then 
+            [physicalSP - 2] = -1;
+            ireturn;
+        endif;
+
+        //Found
+        [3072 + i] = 1;
+        [512 + lseek/512] = i; //data block number in basicblock
+        store(1,basicblock);
+        [FAT + 8 * fatindex + 1] = [FAT + 8 * fatindex + 1] + 512;
+        store(5,19);
+        store(6,20);
+
+        //Fetching block for writing 
+        load(1,i);
+        [512 + lseek%512] = arg2;
+        store(1,i);
+
+        //Increamenting lseek position in PCB
+        [READY_LIST + 32 * 0 + 15 + arg1 * 2 + 1] = [READY_LIST + 32 * 0 + 15 + arg1 * 2 + 1] + 1;
+        
+        [physicalSP - 2] = 0;
+        ireturn;
+
+    endif;
+endif;
