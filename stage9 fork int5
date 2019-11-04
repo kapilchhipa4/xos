@@ -275,17 +275,9 @@ physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
 //finding next process
 alias nextPID S3;
 nextPID = (currentPID + 1) % 32;
-
 while([READY_LIST + 32 * nextPID + 1] != 1) do 
     nextPID = (nextPID + 1) % 32;
 endwhile;
-if([READY_LIST + 32 * 1 + 1] ==1 ) then
-	nextPID = 1;	
-endif;
-if([READY_LIST + 32 * 2 + 1] ==1 ) then
-	nextPID = 2;	
-endif;
-
 alias nextPCB S4;
 nextPCB = READY_LIST + nextPID * 32;
 
