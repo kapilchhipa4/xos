@@ -24,64 +24,61 @@ if(sysCallNo == 8) then
 
 	alias pcb S9;
 	pcb = READY_LIST + (pid * 32);
-	[pcb] = pid;
+	[pcb + 0] = pid;
 	
 	alias count S3;
-	count = 0;
 	alias i S4;
-	i = 1;
-	while(i < 8) do
-		if([PTBR + i] == "01" || [PTBR + i] == "11") then
-			count = count + 1;
-		endif;
-		i = i + 2;
-	endwhile;
-
-	i = 1280;
-	while(i < 1344) do
-		if(count == 0) then
-			break;
-		endif;
-		if([i] == 0) then
-			count = count - 1;
-		endif;
-		i = i + 1;
-	endwhile;
-	
-	if(i >= 1344) then
-		[physicalSP - 2] = -1;
-		ireturn;
-	endif;
-
-	count = 0;
-	i = 1280;
 	alias j S5;
 	alias newPage S6;
 	alias oldPage S7;
 	alias PTBR_child S8;
-	PTBR_child = PTBR + (pid * 8);
-
-	while(i < 1344 && count < 8) do
+	PTBR_child = 1024 + (pid * 8);
+	
+	i = 1280;
+	while(i < 1344) do
 		if([i] == 0) then
-			if([PTBR + count + 1] == "01" || [PTBR + count + 1] == "11") then
-				j = 0;
-				[i] = 1;
-				newPage = (i - 1280) * 512;
-				oldPage = ([PTBR + count] * 512);
-				while(j < 512) do
-					[newPage + j] = [oldPage + j];
-					j = j + 1;
-				endwhile;
-				[PTBR_child + count] = (i - 1280);
-			else
-				i = i - 1;
-				[PTBR_child + count] = -1;
-			endif;
-			[PTBR_child + count + 1] = [PTBR + count + 1];
-			count = count + 2;
+			break;
 		endif;
 		i = i + 1;
-	endwhile; 
+	endwhile;
+
+	if(i >= 1344) then
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+	
+	[i] = 1;
+	
+	[PTBR_child + 6] = i - 1280;
+	[PTBR_child + 7] = "01";
+	
+	i = 0;
+	newPage = [PTBR_child + 6] * 512;
+	oldPage = [PTBR + 6] * 512;
+	while(i < 512) do
+		[newPage + i] = [oldPage + i];
+		i = i + 1;
+	endwhile;
+
+	i = 0;
+	while(i < 6) do
+		[PTBR_child + i] = [PTBR + i];
+		i = i + 1;
+	endwhile;
+
+	i = 0;
+	while(i < 6) do
+		if([PTBR_child + i + 1] == "01" || [PTBR_child + i + 1] == "11") then
+			[1280 + [PTBR_child + i]] = [1280 + [PTBR_child + i]] + 1;
+		else
+			if([PTBR_child + i] >= 448) then
+				[3072 + [PTBR_child + i]] = [3072 + [PTBR_child + i]] + 1;
+			endif;
+		endif;
+		i = i + 2;
+	endwhile;
+	store(6, 20);
+
 	[pcb + 5] = PTBR_child;
 	[pcb + 6] = 4;
 	[pcb + 4] = [physicalSP];
@@ -106,9 +103,13 @@ if(sysCallNo == 8) then
 	[physicalSP - 2] = pid;
 	alias physicalSP_child S12;
 	physicalSP_child = ([PTBR_child + 2 * ([pcb + 3]/512)] * 512) + ([pcb + 3] % 512);
+
 	[physicalSP_child - 1] = -2;
+
 	ireturn;
 endif;
+
+	
 // int 5 end
 
 
