@@ -111,5 +111,145 @@ if(sysCallNo == 8) then
 endif;
 // int 5 end
 
+
+
+
+// os startup
+
+alias counter S0;
+
+load(7,1);
+load(8,2);
+
+load(9, 3);
+load(10,4);
+
+load(11, 5);
+load(12, 6);
+load(13, 7);
+load(14, 8);
+load(15, 9);
+load(16,10);
+load(17,11);
+load(18,12);
+load(19,13);
+load(20,14);
+load(21,15);
+load(22,16);
+load(23,17);
+load(24,18);
+
+load(5, 19);
+load(6, 20);
+
+counter = 0;
+while(counter < 128) do
+	[FILE_TABLE + counter + 0] = -1;
+	[FILE_TABLE + counter + 1] = 0;
+	counter = counter + 2;
+endwhile;
+
+counter = 1280;
+while(counter < 1344) do
+	if(counter <= 1305) then
+		[counter] = 1;
+	else
+		[counter] = 0;
+	endif;
+	
+	counter = counter + 1;
+endwhile;
+
+counter = 0;
+while(counter < 32) do
+	[READY_LIST + (counter * 32) + 1] = 0;
+	counter = counter + 1;
+endwhile;
+
+[READY_LIST + 0] = 0;
+
+PTBR = 1024;
+PTLR = 4;
+
+[PTBR + 0] = 21;
+[PTBR + 1] = "00";
+[PTBR + 2] = 22;
+[PTBR + 3] = "00";
+[PTBR + 4] = 23;
+[PTBR + 5] = "00";
+[PTBR + 6] = 25;
+[PTBR + 7] = "01";
+
+[READY_LIST + 1] = 2;
+
+counter = 3520;
+while(counter < 3584) do
+	[counter] = 0;
+	counter = counter + 1;
+endwhile;
+store(6, 20);
+
+SP = 3 * 512;
+[28 * 512] = 0;
+
+ireturn;
+// os startup end
+
+
+
+
+//timer start 
+
+alias currentPID S0;
+currentPID = (PTBR - 1024)/8;
+alias currentPCB S1;
+currentPCB = READY_LIST + 32 * currentPID;
+[currentPCB + 1] = 1;
+[currentPCB + 2] = BP;
+[currentPCB + 3] = SP - 1;
+alias physicalSP S2;
+physicalSP = ([PTBR + 2 * (SP/512)] * 512) + (SP % 512);
+[currentPCB + 4] = [physicalSP];
+[currentPCB + 5] = PTBR;
+[currentPCB + 6] = PTLR;
+[currentPCB + 7] = R0;
+[currentPCB + 8] = R1;
+[currentPCB + 9] = R2;
+[currentPCB + 10] = R3;
+[currentPCB + 11] = R4;
+[currentPCB + 12] = R5;
+[currentPCB + 13] = R6;
+[currentPCB + 14] = R7;
+
+alias newPCB S3;
+alias newPID S4;
+newPID = (currentPID + 1) % 32;
+while([READY_LIST + (newPID * 32) + 1] != 1) do
+	newPID = (newPID + 1) % 32;
+endwhile;
+newPCB = READY_LIST + newPID * 32;
+
+BP = [newPCB + 2];
+SP = [newPCB + 3];
+PTBR = [newPCB + 5];
+PTLR = [newPCB + 6];
+R0 = [newPCB + 7];
+R1 = [newPCB + 8];
+R2 = [newPCB + 9];
+R3 = [newPCB + 10];
+R4 = [newPCB + 11];
+R5 = [newPCB + 12];
+R6 = [newPCB + 13];
+R7 = [newPCB + 14];
+
+SP = SP + 1;
+alias newphysicalSP S2;
+newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+[newphysicalSP] = [newPCB + 4];
+[newPCB + 1] = 2;
+ireturn;
+
+
+//timer end
 	
 		
