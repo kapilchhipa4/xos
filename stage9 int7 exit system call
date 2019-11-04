@@ -1,0 +1,204 @@
+//int 7 start exit system call
+
+alias currentPID S0;
+currentPID = (PTBR - 1024) / 8;
+
+alias currentPCB S1;
+currentPCB = READY_LIST + 32 * currentPID;
+
+[READY_LIST + 32 * currentPID + 1] = 1; //Process in ready list
+
+
+alias nextPID S4;
+nextPID = (currentPID + 1) % 32;
+
+
+//Searching for next process 
+while([READY_LIST + 32 * nextPID + 1] != 1) do 
+    nextPID = (nextPID + 1) % 32;
+endwhile;
+
+
+//If no Process Found 
+if(nextPID == currentPID) then
+    halt;
+endif;
+
+
+//Searching and closing files
+alias pointer S2;
+alias i S3;
+i = 0;
+while(i < 8) do
+    pointer = [currentPCB + 15 + i * 2 + 0];
+    if(pointer != -1) then 
+        [FILE_TABLE + pointer * 2 + 1] = [FILE_TABLE + pointer * 2 + 1] - 1;
+        if([FILE_TABLE + pointer * 2 + 1] == 0) then 
+            [FILE_TABLE + pointer * 2 + 0] = -1;
+        endif;
+        [currentPCB + 15 + i * 2 + 0] = -1;
+        [currentPCB + 15 + i * 2 + 1] = -1;
+    endif;
+    i = i + 1;
+endwhile;
+
+//Setting the state 
+[currentPCB + 1] = 0;
+
+//Freeing memory Pages and invalidating its Page table 
+alias page S2;
+i = 0;
+while(i < PTLR) do
+    page = [PTBR + i * 2 + 0];
+    if(page != -1) then 
+        [MEM_LIST + page] = 0;
+    endif;
+    [PTBR + i * 2 + 0] = -1;
+    [PTBR + i * 2 + 1] = "00";
+    i = i + 1;
+endwhile;
+
+//Schedule the next process
+alias nextPCB S5;
+nextPCB = READY_LIST + 32 * nextPID;
+
+BP = [nextPCB + 2];
+SP = [nextPCB + 3];
+PTBR = [nextPCB + 5];
+PTLR = [nextPCB + 6];
+R0 = [nextPCB + 7];
+R1 = [nextPCB + 8];
+R2 = [nextPCB + 9];
+R3 = [nextPCB + 10];
+R4 = [nextPCB + 11];
+R5 = [nextPCB + 12];
+R6 = [nextPCB + 13];
+R7 = [nextPCB + 14];
+
+//Setting IP value
+SP = SP + 1;
+alias physicalSP S6;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+[physicalSP] = [nextPCB + 4];
+[nextPCB + 1] = 2;
+ireturn;
+
+//exit end
+
+
+
+//os startup for two process
+
+[READY_LIST + 0] = 0;
+[READY_LIST + 1] = 2;
+SP = 3 * 512;
+[28 * 512] = 0;
+PTBR = 1024; 
+PTLR = 4; 
+load(25,21); 
+load(26,22); 
+load(27,23);
+load(9,3);
+load(10,4);
+load(23,17);
+load(24,18);
+
+[PTBR + 0] = 25; 
+[PTBR + 1] = "01";	
+[PTBR + 2] = 26; 
+[PTBR + 3] = "01";	
+[PTBR + 4] = 27; 
+[PTBR + 5] = "01";	
+[PTBR + 6] = 28; 
+[PTBR + 7] = "01"; 
+load (11, 5);
+load (12, 6);
+
+[READY_LIST + 32] = 1;
+load(29,25);
+alias PTBR_Process1 S0;
+PTBR_Process1 = 1024 + 1 * 8;
+[PTBR_Process1 + 0]=29;
+[PTBR_Process1 + 1]="01";
+[PTBR_Process1 + 2]=-1;
+[PTBR_Process1 + 3]="00";
+[PTBR_Process1 + 4]=-1;
+[PTBR_Process1 + 5]="00";
+[PTBR_Process1 + 6]=30;
+[PTBR_Process1 + 7]="01";
+[READY_LIST + 33] = 1;
+[READY_LIST + 37] =PTBR_Process1;
+[READY_LIST + 38] = 4;
+[READY_LIST + 34] = 3*512;
+[READY_LIST + 35] = 3*512;
+[READY_LIST + 36] = 0;
+load(9,3);
+load(10,4);
+
+ireturn;
+
+//os startu end
+
+
+//timer  start
+
+//Saving current process state 
+alias currentPID S0;
+currentPID = (PTBR - 1024) / 8;
+alias currentPCB S1;
+currentPCB = READY_LIST + 32 * currentPID;
+
+//Saving in PCB
+[currentPCB + 1] = 1; //State
+[currentPCB + 2] = BP;
+[currentPCB + 3] = SP - 1;
+alias physicalSP S2;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+[currentPCB + 4] = [physicalSP];
+[currentPCB + 5] = PTBR;
+[currentPCB + 6] = PTLR;
+[currentPCB + 7] = R0;
+[currentPCB + 8] = R1;
+[currentPCB + 9] = R2;
+[currentPCB + 10] = R3;
+[currentPCB + 11] = R4;
+[currentPCB + 12] = R5;
+[currentPCB + 13] = R6;
+[currentPCB + 14] = R7;
+
+
+//finding next process
+alias nextPID S3;
+nextPID = (currentPID + 1) % 32;
+
+while([READY_LIST + 32 * nextPID + 1] != 1) do 
+    nextPID = (nextPID + 1) % 32;
+endwhile;
+
+alias nextPCB S4;
+nextPCB = READY_LIST + nextPID * 32;
+
+//Scheduling next Process
+R0 = [nextPCB + 7];
+R1 = [nextPCB + 8];
+R2 = [nextPCB + 9];
+R3 = [nextPCB + 10];
+R4 = [nextPCB + 11];
+R5 = [nextPCB + 12];
+R6 = [nextPCB + 13];
+R7 = [nextPCB + 14];
+BP = [nextPCB + 2];
+SP = [nextPCB + 3];
+PTBR = [nextPCB + 5];
+PTLR = [nextPCB + 6];
+SP = SP + 1;
+alias newPhysicalSp S5;
+newPhysicalSp = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+[newPhysicalSp] = [nextPCB + 4];
+[nextPCB + 1] = 2;
+ireturn;
+
+//timer end
+
+
+
