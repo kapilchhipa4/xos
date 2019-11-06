@@ -39,18 +39,6 @@ load(27,23);
 
 alias counter S0;			
 counter = 0;
-while ( counter <  128) do			
-	[ FILE_TABLE + counter ] = -1;	
-	[ FILE_TABLE + counter + 1] =  0; //SWOFT	
-	counter = counter + 2;			
-endwhile;
-
-counter = 15;
-while ( counter <= 30) do
-	[READY_LIST + counter] =-1;   //PPOFT
-	counter=counter+1;
-endwhile;
-counter = 0;
 while ( counter<=28 ) do 	// used page in memory free list
 	[1280 + counter ] =1;
 	counter=counter+1;
@@ -59,10 +47,21 @@ while ( counter<64) do
 	[1280 + counter ] =0 ;//UNUSED pages in memory free list
 	counter=counter+1;
 endwhile;
-counter = 1;
+counter=1;
 while( counter<32) do
 	[READY_LIST + counter *32 + 1] =0; //state of all pcb's is 0 means terminated
 	counter= counter+1;
+endwhile;
+counter = 0;
+while ( counter <  128) do			
+	[ FILE_TABLE + counter ] = -1;	
+	[ FILE_TABLE + counter + 1] =  0; //SWOFT	
+	counter = counter + 2;			
+endwhile;
+counter = 15;
+while ( counter <= 30) do
+	[READY_LIST + counter] =-1;   //PPOFT
+	counter=counter+1;
 endwhile;
 ireturn;
 
@@ -102,6 +101,7 @@ if(sysCallNo == 8) then
 
     //NO free PCB Found
     if(pcbIndex >= 32) then 
+    	print("no pcb");
         [physicalSp - 2] = -1;
         ireturn;
     endif;
@@ -147,7 +147,7 @@ if(sysCallNo == 8) then
 
     //Enough Free Pages Found
     alias newPTBR S6;
-    newPTBR = PAGE_TABLE + [newPCB + 0] * 8;
+    newPTBR = PAGE_TABLE + pcbIndex * 8;
     
     //Working Correctly
 
