@@ -19,12 +19,14 @@ if(sysCallNo == 6) then
         ireturn;
     endif;
     //PPOFT entry is invalid 
-    if([READY_LIST + 32 * 0 + 15 + fileDescriptor * 2 + 0] == -1) then 
+    alias id S10;
+    id = (PTBR - 1024) / 8;
+    if([READY_LIST + 32 * id + 15 + fileDescriptor * 2 + 0] == -1) then 
         [physicalSp - 2] = -1;
         ireturn;
     endif;
     alias pointer S4;
-    pointer = [READY_LIST + 32 * 0 + 15 + fileDescriptor * 2 + 0];
+    pointer = [READY_LIST + 32 * id + 15 + fileDescriptor * 2 + 0];
     alias fatindex S5;
     fatindex = [FILE_TABLE + 2 * pointer + 0];
     alias size S6;
@@ -37,7 +39,7 @@ if(sysCallNo == 6) then
     endif;
 
     //Successfully changed lseek position
-    [READY_LIST + 32 * 0 + 15 + fileDescriptor * 2 + 1] = newLseek;
+    [READY_LIST + 32 * id + 15 + fileDescriptor * 2 + 1] = newLseek;
     ireturn;
 
 endif;
@@ -46,7 +48,7 @@ endif;
 if(sysCallNo == 7) then
     alias wordRead S3;
     wordRead = [physicalSp - 3];
- 
+ alias id S10;
     //File Descriptor is invalid 
     if(fileDescriptor < 0 && fileDescriptor > 7)  then
         [physicalSp - 2] = -1;
@@ -54,15 +56,15 @@ if(sysCallNo == 7) then
     endif;
 
      //PPOFT entry is invalid 
-    if([READY_LIST + 32 * 0 + 15 + fileDescriptor * 2 + 0] == -1) then 
+    if([READY_LIST + 32 * id + 15 + fileDescriptor * 2 + 0] == -1) then 
         [physicalSp - 2] = -1;
         ireturn;
     endif;
 
     alias pointer S4;
     alias lseek S5;
-    pointer = [READY_LIST + 32 * 0 + 15 + fileDescriptor *  2 + 0];
-    lseek = [READY_LIST + 32 * 0 + 15 + fileDescriptor *  2 + 1];
+    pointer = [READY_LIST + 32 * id + 15 + fileDescriptor *  2 + 0];
+    lseek = [READY_LIST + 32 * id + 15 + fileDescriptor *  2 + 1];
 
     alias fatindex S6;
     fatindex = [FILE_TABLE + pointer * 2 + 0];
