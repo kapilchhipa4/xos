@@ -1,0 +1,76 @@
+alias physicalSp S0;
+physicalSp = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+alias sysCallNo S1;
+sysCallNo = [physicalSp - 1];
+
+alias filed S2;
+alias newls S3;
+
+newls = [physicalSp - 3];
+filed = [physicalSp - 4];
+
+if(filed < 0 && filed > 7)  then
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+if([READY_LIST + 32 * 0 + 15 + filed * 2 + 0] == -1) then 
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+if(sysCallNo == 6) then
+   
+    alias pointer S4;
+    pointer = [READY_LIST + 32 * 0 + 15 + filed * 2 + 0];
+    alias fatindex S5;
+    fatindex = [FILE_TABLE + 2 * pointer + 0];
+    alias size S6;
+    size = [FAT + fatindex * 8 + 1];
+
+   
+    if(newls < 0 && newls > size) then
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+
+    
+    [READY_LIST + 32 * 0 + 15 + filed * 2 + 1] = newls;
+    ireturn;
+
+endif;
+
+
+if(sysCallNo == 7) then
+    alias wordRead S3;
+    wordRead = [physicalSp - 3];
+
+    alias pointer S4;
+    alias lseek S5;
+    pointer = [READY_LIST + 32 * 0 + 15 + filed *  2 + 0];
+    lseek = [READY_LIST + 32 * 0 + 15 + filed *  2 + 1];
+
+    alias fatindex S6;
+    fatindex = [FILE_TABLE + pointer * 2 + 0];
+    alias basicblock S7;
+    basicblock = [FAT + fatindex * 8 + 2];
+    load(1,basicblock);
+
+    
+    if(lseek == [FAT + fatindex * 8 + 1]) then 
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+
+    alias datablock S8;
+    datablock = [512 + (lseek / 512)];
+    load(1,datablock);
+    //print([512 + (lseek % 512)]);
+    breakpoint;
+    [physicalSp - 3] = [512 + (lseek % 512)];
+
+    
+
+    [READY_LIST + 32 * 0 + 15 + filed * 2 + 1] = [READY_LIST + 32 * 0 + 15 + filed * 2 + 1] + 1;
+    [physicalSp - 2] = 0;
+    ireturn;
+endif;

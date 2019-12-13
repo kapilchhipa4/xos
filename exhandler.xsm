@@ -1,0 +1,5 @@
+START
+MOV T0,  "exception occured"
+OUT T0
+HALT
+HALT

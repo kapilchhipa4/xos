@@ -1,0 +1,93 @@
+alias physicalSp S0;
+physicalSp = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+alias sysCallNo S1;
+sysCallNo = [physicalSp - 1];
+
+alias fileName S2;
+fileName = [physicalSp - 3];
+
+//Correctly Working 
+
+
+if(sysCallNo == 9) then 
+    //Searching for file in FAT
+    alias i S3;
+    i = 0;
+    while(i < 64) do
+        if([FAT + 8 * i + 2] != -1) then 
+            if([FAT + 8 * i + 0] == fileName) then 
+                break;
+            endif;
+        endif;
+        i = i + 1;
+    endwhile;
+    
+
+    //File Not Found 
+    if(i >= 64) then 
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+
+    //File Found
+
+    alias basicBlock S4;
+    basicBlock = [FAT + 8 * i + 2];
+
+    //Loading in SCARTCHPAD
+    load(1,basicBlock);
+
+    alias page S5;
+    page = 0;
+    while(page < PTLR - 1) do
+        if([PTBR + 2 * page + 1] == "11" || [PTBR + 2 * page + 1] == "01") then 
+            [MEM_LIST + [PTBR + 2 * page + 0]] = [MEM_LIST + [PTBR + 2 * page + 0]] - 1;
+        endif;
+        if([PTBR + 2 * page + 1] == "00") then 
+            if([PTBR + 2 * page + 0] >= 448) then 
+                [DISK_LIST + [PTBR + 2 * page + 0]] = [DISK_LIST + [PTBR + 2 * page + 0]] - 1;
+            endif;
+        endif;
+ 
+        page = page + 1;
+    endwhile;
+
+    //Setting Page table and inserting code block in page table 
+    page = 0;
+    while(page < 3) do  
+        [PTBR + 2 * page + 0] = [512 + page];
+        [PTBR + 2 * page + 1] = "00";
+        page = page + 1;
+    endwhile;
+
+    //Closing files of the current process
+    i = 0;
+    alias fileIndex S9;
+    while(i < 8) do
+        if([READY_LIST + 32 * ((PTBR - 1024) / 8) + 15 + i * 2 + 0] != -1) then 
+             fileIndex = [READY_LIST + 32 * ((PTBR - 1024) / 8) + 15 + i * 2 + 0];
+             [READY_LIST + 32 * ((PTBR - 1024) / 8) + 15 + i * 2 + 0] = -1;
+             [READY_LIST + 32 * ((PTBR - 1024) / 8) + 15 + i * 2 + 1] = -1;
+             [FILE_TABLE + 2 * fileIndex + 1] = [FILE_TABLE + 2 * fileIndex + 1] - 1;
+             if([FILE_TABLE + 2 * fileIndex + 1] == 0) then 
+                [FILE_TABLE + 2 * fileIndex + 0] = -1;
+            endif;
+            [READY_LIST + 32 * ((PTBR - 1024) / 8) + 15 + i * 2 + 0] = -1;
+            [READY_LIST + 32 * ((PTBR - 1024) / 8) + 15 + i * 2 + 1] = -1;
+        endif;
+        i = i + 1;
+    endwhile;
+
+
+    //Setting New SP
+    SP = 3 * 512;
+
+    //Setting New IP
+    alias physicalNewSp S6;
+    physicalNewSp = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+    [physicalNewSp] = 0;
+
+endif;
+
+ireturn;

@@ -1,0 +1,113 @@
+alias Cause S7;
+alias Vpagenum S8;
+alias Ip_addr S9;
+
+Cause = EFR % 10;
+Vpagenum = (EFR / 10) % 100;
+Ip_addr = (EFR / 1000);
+
+if(Cause == 1 || Cause == 2 || Cause == 3 || Cause == 4) then 
+    //Exit the process 
+    inline "JMP 11776";
+endif;
+
+
+//Memory Fault 
+if(Cause == 0) then
+    if([PTBR + Vpagenum * 2 + 0] == -1) then 
+        inline "JMP 11776";
+    endif;
+
+    //Searching for a free page in Memory free list
+    alias i S0;
+    i = 0;
+    while(i < 64) do 
+        if([MEM_LIST + i] == 0) then 
+            break;
+        endif;
+        i = i + 1;
+    endwhile;
+
+    alias victimPage S4;
+    //page found
+    if(i < 64) then 
+        victimPage = i;
+    endif;
+
+   //second chance will be apply
+    if(i >= 64) then 
+        victimPage = -1;
+        i = PTBR + 2 * Vpagenum + 2; //Adress of next page 
+        if(i >= 1280) then 
+            i = 1024;
+        endif;
+        while(1) do
+            if(i % 8 != 6 && [MEM_LIST + [i]] <= 1) then //Not a Stack Page and Not a shared Page 
+                if([i + 1] == "01") then 
+                    victimPage = [i];
+                    break;
+                else 
+                    [i + 1] = "01";
+                endif;
+            endif;
+            i = i + 2;
+            if(i >= 1280) then 
+                i = 1024;
+            endif;
+        endwhile;
+
+        //Searching for a free swap block
+        alias swapIndex S10;
+        swapIndex = 448;
+        load(6,20);
+        while(swapIndex < 512) do 
+            if([DISK_LIST + swapIndex] == 0) then 
+                break;
+            endif;
+            swapIndex = swapIndex + 1;
+        endwhile;
+
+        //No Swap Block found 
+        if(swapIndex >= 512) then
+            inline "JMP 11776";
+        endif;
+    
+        store(victimPage,swapIndex);
+        [DISK_LIST + swapIndex] = 1;
+
+        //Updating entries in PPPT
+        [i] = swapIndex;
+        [i + 1] = "00";    
+        store(6,20);
+    endif;
+
+
+    //New VictimPage now found 
+
+    alias page S2;
+    page = [PTBR + 2 * Vpagenum + 0];
+
+    //Swap Disk block found 
+    load(6,20);
+    if(page >= 448 && page <= 511) then 
+        [DISK_LIST + page] = [DISK_LIST + page] - 1;
+    endif;
+    store(6,20);
+
+    //Loading the victim page
+    load (victimPage,page);
+
+    //Updating Current process page table 
+    [PTBR + 2 * Vpagenum + 0] = victimPage;
+    [PTBR + 2 * Vpagenum + 1] = "11";
+
+
+
+    SP = SP + 1;
+    alias physicalSp S3;
+    physicalSp = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+    [physicalSp] = Ip_addr;
+    ireturn;
+
+endif;

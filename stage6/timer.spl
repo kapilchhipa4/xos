@@ -1,0 +1,55 @@
+//Saving current process state 
+alias currentPID S0;
+currentPID = (PTBR - 1024) / 8;
+alias currentPCB S1;
+currentPCB = READY_LIST + 32 * currentPID;
+
+//Saving in PCB
+[currentPCB + 1] = 1; //State
+[currentPCB + 2] = BP;
+[currentPCB + 3] = SP - 1;
+alias physicalSP S2;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+[currentPCB + 4] = [physicalSP];
+[currentPCB + 5] = PTBR;
+[currentPCB + 6] = PTLR;
+[currentPCB + 7] = R0;
+[currentPCB + 8] = R1;
+[currentPCB + 9] = R2;
+[currentPCB + 10] = R3;
+[currentPCB + 11] = R4;
+[currentPCB + 12] = R5;
+[currentPCB + 13] = R6;
+[currentPCB + 14] = R7;
+
+
+//finding next process
+alias nextPID S3;
+nextPID = (currentPID + 1) % 32;
+
+while([READY_LIST + 32 * nextPID + 1] != 1) do 
+    nextPID = (nextPID + 1) % 32;
+endwhile;
+
+alias nextPCB S4;
+nextPCB = READY_LIST + nextPID * 32;
+
+//Scheduling next Process
+R0 = [nextPCB + 7];
+R1 = [nextPCB + 8];
+R2 = [nextPCB + 9];
+R3 = [nextPCB + 10];
+R4 = [nextPCB + 11];
+R5 = [nextPCB + 12];
+R6 = [nextPCB + 13];
+R7 = [nextPCB + 14];
+BP = [nextPCB + 2];
+SP = [nextPCB + 3];
+PTBR = [nextPCB + 5];
+PTLR = [nextPCB + 6];
+SP = SP + 1;
+alias newPhysicalSp S5;
+newPhysicalSp = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+[newPhysicalSp] = [nextPCB + 4];
+[nextPCB + 1] = 2;
+ireturn;

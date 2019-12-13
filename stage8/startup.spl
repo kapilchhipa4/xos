@@ -1,0 +1,65 @@
+load (7,1);
+load (8,2);
+
+//INT 7 
+load (23,17);
+load (24,18);
+
+//FAT and df
+load (5,19);
+load (6,20);
+
+//INT 1
+load (11,5);
+load (12,6);
+
+//INT 2
+load (13,7);
+load (14,8);
+
+//INT 3
+load (15,9);
+load (16,10);
+
+//INT 4
+load (17,11);
+load (18,12);
+
+
+//Setting up INIT process 
+[READY_LIST + 0] = 0;
+load (25,21);
+load (26,22);
+load (27,23);
+PTBR = 1024;
+PTLR = 4;
+[PTBR + 0] = 25;
+[PTBR + 1] = "01";
+[PTBR + 2] = 26;
+[PTBR + 3] = "01";
+[PTBR + 4] = 27;
+[PTBR + 5] = "01";
+[PTBR + 6] = 28;
+[PTBR + 7] = "01";
+[READY_LIST + 1] = 2;
+SP = 3 * 512;
+[28 * 512] = 0;
+
+//System wide open file table
+alias counter S0;
+counter = 0;
+while(counter < 128) do 
+	[FILE_TABLE + counter + 0] = -1;
+	[FILE_TABLE + counter + 1] = 0;
+	counter = counter + 2;
+endwhile;
+
+//Per process open file table
+counter = 15;
+while(counter < 31) do 
+	[READY_LIST + 32 * 0 + counter] = -1;
+	counter = counter + 1;
+endwhile;
+
+
+ireturn;

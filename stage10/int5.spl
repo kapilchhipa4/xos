@@ -1,0 +1,140 @@
+alias physicalSp S0;
+physicalSp = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+//System Call No 
+alias sysCallNo S1;
+sysCallNo = [physicalSp - 1];
+
+if(sysCallNo == 8) then 
+    alias pcbIndex S2;
+    pcbIndex = 1;
+    while(pcbIndex < 32) do 
+        if([READY_LIST + pcbIndex * 32 + 1] == 0) then 
+            break;
+        endif;
+        pcbIndex = pcbIndex + 1;
+    endwhile;
+    
+    //Working Correctly 
+
+    //NOT FOUND free PCB
+    if(pcbIndex == 32) then 
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+
+    //Found 
+    alias newPCB S3;
+    newPCB = READY_LIST + 32 * pcbIndex;
+    [newPCB + 0] = pcbIndex; //setting PID
+
+
+    //Working correctly
+
+    //Counting valid pages of parent process
+    alias i S2;
+    i = 0;
+    
+ 
+    //Working Correctly
+
+   //free page for stack
+    i = 25;
+    while(i < 64) do 
+        if([MEM_LIST + i] == 0) then 
+            break;
+        endif;
+        i = i + 1;
+    endwhile;
+
+    //No free page found 
+    if(i >= 64) then // yaha error thi
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+
+    //Reserving block for stack only
+    [MEM_LIST + i] = 1;
+
+    alias newStackPage S5;
+    newStackPage = i;
+
+    //Copying Stack Page 
+    i = 0;
+    while(i < 511) do 
+        [newStackPage + i] = [[PTBR + 3 * 2 + 0] + i];
+        i = i + 1;
+    endwhile;
+
+    alias newPTBR S6;
+    newPTBR = PAGE_TABLE + [newPCB + 0] * 8;
+    
+    //Working Correctly
+
+    //Copying Registers 
+    [newPCB + 5] = newPTBR;
+    [newPCB + 6] = PTLR;
+    [newPCB + 4] = [physicalSp];
+    [newPCB + 3] = [physicalSp - 1];
+    [newPCB + 2] = BP;
+    [newPCB + 7] = R0;
+    [newPCB + 8] = R1;
+    [newPCB + 9] = R2;
+    [newPCB + 10] = R3;
+    [newPCB + 11] = R4;
+    [newPCB + 12] = R5;
+    [newPCB + 13] = R6;
+    [newPCB + 14] = R7;
+
+    [newPTBR + 3 * 2 + 0] = newStackPage;
+    [newPTBR + 3 * 2 + 1] = "01";
+
+     load(6,20);
+    i = 0;
+    while(i < 3) do 
+        //If entry is valid 
+        if([PTBR + 2 * i + 1] == "01" || [PTBR + 2 * i + 1] == "11") then 
+            [MEM_LIST + [PTBR + 2 * i + 0]] = [MEM_LIST + [PTBR + 2 * i + 0]] + 1;
+        endif;
+        //If entry is invalid 
+        if(([PTBR + 2 * i + 1] == "00" || [PTBR + 2 * i + 1] == "10") && [PTBR + 2 * i + 0] > 447) then 
+           
+            [DISK_LIST + [PTBR + 2 * i + 0]] = [DISK_LIST + [PTBR + 2 * i + 0]] + 1;
+        endif;
+        [newPTBR + i * 2 + 0] = [PTBR + 2 * i + 0];
+        [newPTBR + i * 2 + 1] = [PTBR + 2 * i + 1];
+        i = i + 1;
+    endwhile;
+    store(6,20);
+    
+    [physicalSp - 2] = [newPCB + 0];
+
+
+    alias childSp S7;
+    childSp = [newPCB + 3];
+    alias physicalChildSp S8;
+    physicalChildSp = ([newPTBR + 2 * (childSp / 512)] * 512) + (childSp % 512);
+
+    [physicalChildSp - 1] = -2;
+    [newPCB + 1] = 1;
+
+    //Copying File Information 
+    i = 15;
+    alias parrentPCB S9;
+    parrentPCB = READY_LIST + 32 * ((PTBR - 1024) / 8);
+    while(i < 31) do 
+        [newPCB + i] = [parrentPCB + i];
+        i = i + 1;
+    endwhile;
+    i = 0;
+    alias fileIndex S9;
+    while(i < 8) do 
+        fileIndex = [newPCB + 15 + i * 2 + 0];
+        if(fileIndex != -1) then 
+            [FILE_TABLE + 2 * fileIndex + 1] = [FILE_TABLE + 2 * fileIndex + 1] + 1;
+        endif;
+        i = i + 1;
+    endwhile;
+
+endif;
+ireturn;
