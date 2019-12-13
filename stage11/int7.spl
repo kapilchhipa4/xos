@@ -1,0 +1,246 @@
+// Alias definitions
+alias physicalSP S0;
+alias sysCallNo S1;
+alias currentPID S2;
+alias currentPCB S3;
+alias newPID S4;
+alias newPCB S5;
+alias i S6;
+alias j S7;
+alias newphysicalSP S8;
+alias waitingPID S9;
+alias waitingPCB S10;
+alias flag S11;
+
+//Physical SP value
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); 
+
+//Obtaining syscall number
+sysCallNo = [physicalSP - 1];
+
+// Calculating PID
+currentPID = (PTBR - 1024) / 8;
+
+// Calculating PCB entry for currentPID
+currentPCB = READY_LIST + 32 * currentPID;
+
+//If the INT 7 was improperly called
+if (sysCallNo != 13 && sysCallNo != 10 && sysCallNo != 14) then
+    print([physicalSP]);
+    print(physicalSP);
+    breakpoint;
+    print("Improper Exit Call");
+    [physicalSP - 2] = -1;
+    ireturn;
+    
+endif;
+
+
+//Signal Syscall 
+if (sysCallNo == 14) then
+    //Waking up all Processes with STATE == 100 + currentPID
+    newPID = (currentPID + 1) % 32;
+    
+    //Keeping a flag if any process recieves this signal
+    flag = 0;
+    
+    while 1 do
+        waitingPCB = READY_LIST + 32 * waitingPID;   
+       
+        if ([waitingPCB + 1] == currentPID + 100) then
+            //Setting STATE to Running
+            [waitingPCB + 1] = 1;
+            flag = 1;
+        endif;
+        
+        waitingPID = (waitingPID + 1) % 32;
+        if waitingPID == currentPID then
+            break;
+        endif;
+    endwhile;
+    
+    //Setting the return value based on flag
+    if (flag == 1) then
+        [physicalSP - 2] = 0;
+    else 
+        [physicalSP - 2] = -1;
+    endif;
+    
+    ireturn;
+endif;
+
+
+//Wait Syscall 
+if (sysCallNo == 13) then
+    //Taking PID of the process to wait for
+    waitingPID = [physicalSP - 3];
+    
+    //Checking if waitingPID is a valid PID number for XOS 
+    if (waitingPID < 0 || waitingPID > 31) then
+        [physicalSP - 2] = -1;
+        ireturn;
+    endif;
+    
+    //Checking if the given waitingPID is a valid process
+    //waiting PID can either be for a STATE Ready or Waiting
+    waitingPCB = READY_LIST + 32 * waitingPID;
+    if ([waitingPCB + 1] == 0 || [waitingPCB + 1] == 2) then
+        [physicalSP - 2] = -1;
+        ireturn;
+    endif;
+    
+    //Changing State to WaitingPID + 100
+    [currentPCB + 1] = 100 + waitingPID;
+    
+    // Scheduling Next Ready State
+    // Documentation mentions to invoke scheduler of exit but functions are not 
+    //    Available 
+    
+    //Saving Current Process State
+    //Save BP, SP to PCB entry
+    [currentPCB + 2] = BP;
+    [currentPCB + 3] = SP - 1;  
+
+    // Saving the IP value of the current PID
+    [currentPCB + 4] = [physicalSP];
+
+    //Saving PTBR and PTLR
+    [currentPCB + 5] = PTBR;
+    [currentPCB + 6] = PTLR;
+
+    //Saving Program Registers
+    [currentPCB +  7] = R0;
+    [currentPCB +  8] = R1;
+    [currentPCB +  9] = R2;
+    [currentPCB + 10] = R3;
+    [currentPCB + 11] = R4;
+    [currentPCB + 12] = R5;
+    [currentPCB + 13] = R6;
+    [currentPCB + 14] = R7;
+    
+    //Setting the return value to stack
+    [physicalSP - 2] = 0;
+endif;
+
+
+//******************************************
+//Implementing the Next Process Scheduling for Exit and Wait Together
+
+//Exit Specific Code
+if (sysCallNo == 10) then
+    print("Exiting");
+    //Closing all Files
+    i = 0;
+    while (i < 8) do
+        j = currentPCB + 15 + i * 2;
+        if([j] != -1) then
+            //Reducing System Wide File Table Count
+            [FILE_TABLE + [j] * 2 + 1] = [FILE_TABLE + [j] * 2 + 1] - 1;
+            
+            //Invalidating entry if not in use
+            if ([FILE_TABLE + [j] * 2 + 1] == 0) then
+	            [FILE_TABLE + [j] * 2] = -1;
+	        endif;
+	        
+	        //Invalidating the PPOFT entry
+	        [j] = -1;
+	        [j + 1] = -1;
+        endif;
+        i = i + 1;
+    endwhile;
+
+    //Setting State to terminated
+    [currentPCB + 1] = 0;
+    
+    //Setting Code Page MFL and DFL structures
+    i = 0;
+    while (i < 4) do
+        j = PTBR + i * 2;
+        //Modifying the DFL and MFL for Pure Demand paging
+        if ([j] != -1) then
+            //If the page is Valid; in Memory
+            if([j + 1] == "11" || [j + 1] == "01") then
+                
+                [MEM_LIST + [j]] = [MEM_LIST + [j]] - 1;
+            else
+                //If page is placed in the Swap Area
+                if ([j] > 447) then
+                    [DISK_LIST + [j]] = [DISK_LIST + [j]] - 1;
+                endif;
+            endif;
+                
+           [j] = -1;
+           [j + 1] = "00";
+        endif;
+        
+        i = i + 1;
+    endwhile;
+    
+    //Commiting DFL changes 
+    store (6, 20);
+    
+    //Waking up all Processes with STATE == 100 + currentPID
+    waitingPID = (currentPID + 1) % 32;
+    while 1 do
+        waitingPCB = READY_LIST + 32 * waitingPID;   
+       
+        if ([waitingPCB + 1] == currentPID + 100) then
+            //Setting STATE to Running
+            [waitingPCB + 1] = 1;
+        endif;
+        
+        waitingPID = (waitingPID + 1) % 32;
+        if (waitingPID == currentPID) then
+            break;
+        endif;
+    endwhile;
+endif;
+
+
+// Looking to the next available process
+newPID = (currentPID + 1) % 32;
+while 1 do
+    newPCB = READY_LIST + 32 * newPID;
+    if [newPCB + 1] == 1 then
+        break;
+    else 
+        newPID = (newPID + 1) % 32;
+        if newPID == currentPID then
+            breakpoint;
+            halt;
+        endif;
+    endif;
+endwhile;
+
+//Context Switching
+
+//Loading Registers from the PCB
+//Settign BP, SP from PCB entry
+BP = [newPCB + 2];
+SP = [newPCB + 3];
+
+// Setting Page Table Base and Length Registers
+PTBR = [newPCB + 5]; 
+PTLR = [newPCB + 6];
+
+// Setting Program Registers
+R0 = [newPCB +  7];
+R1 = [newPCB +  8];
+R2 = [newPCB +  9];
+R3 = [newPCB + 10];
+R4 = [newPCB + 11];
+R5 = [newPCB + 12];
+R6 = [newPCB + 13];
+R7 = [newPCB + 14];
+
+// Setting IP into top of SP stack
+SP = SP + 1;
+
+newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+[newphysicalSP] = [newPCB + 4];
+
+// Set STATE for newPID to Running
+[newPCB + 1] = 2;
+
+// Returning control to new process
+ireturn;

@@ -1,0 +1,183 @@
+alias physicalSp S0;
+physicalSp = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+alias sysCallNo S1;
+sysCallNo = [physicalSp - 1];
+
+alias fileName S2;
+fileName = [physicalSp - 3];
+
+//Correctly Working 
+if(sysCallNo==12) then
+[physicalSp - 2] = [READY_LIST + 32 * ((PTBR-1024)/8) + 31];
+ireturn;
+endif;
+
+if(sysCallNo == 11) then
+[physicalSp - 2]=( PTBR - 1024)/8;
+ireturn;
+endif;
+if(sysCallNo == 9) then 
+    //Searching for file in FAT
+    alias i S3;
+    i = 0;
+    while(i < 64) do
+        if([FAT + 8 * i + 2] != -1) then 
+            if([FAT + 8 * i + 0] == fileName) then 
+                break;
+            endif;
+        endif;
+        i = i + 1;
+    endwhile;
+    
+    //Working Correctly
+
+
+    //Not Found 
+    if(i >= 64) then 
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+
+    //Found
+
+    alias basicBlock S4;
+    basicBlock = [FAT + 8 * i + 2];
+
+    //Working Correctly
+
+
+    //Loading in SCARTCHPAD
+    load(1,basicBlock);
+
+
+    //Counting no of code block of new program 
+    i = 0;
+    alias codeBlock S5;
+    codeBlock = 0;
+    while(i < 512 && [512 + i] != -1) do  
+            codeBlock = codeBlock + 1;
+            i = i + 1;
+    endwhile;
+
+    //Working Correctly 
+
+
+    //More pages than 3
+    if(codeBlock > 3) then 
+        [physicalSp - 2] = -1;
+        ireturn;
+    endif;
+
+
+    //Counting valid pages in current process
+    alias validCodePages S6;
+    validCodePages = 0;
+    i = 0;
+    while(i < PTLR) do 
+        if([PTBR + 2 * i + 0] != -1) then 
+            validCodePages = validCodePages + 1;
+        endif;
+        i = i + 1;
+    endwhile;
+
+    //Decreament 1 stack page 
+    validCodePages = validCodePages - 1;
+
+    //Working Correctly
+
+
+
+    alias diffPages S7;
+    diffPages = validCodePages - codeBlock;
+
+    //Working Correctly
+
+
+
+    //More Pages 
+    if(diffPages > 0) then 
+        i = validCodePages - 1;
+        while(diffPages != 0) do
+            [MEM_LIST + [PTBR + 2 * i + 0]] = 0; //Deallocate;
+            [PTBR + 2 * i + 0] = -1;
+            [PTBR + 2 * i + 1] = "00";
+            diffPages = diffPages - 1;
+            i = i - 1;
+        endwhile;
+    endif;
+
+    //Working Correctly
+
+    diffPages = validCodePages - codeBlock;
+
+    //Less Pages. Have to Allocate more
+
+
+    if(diffPages < 0) then 
+        diffPages = -1 * diffPages;
+
+        //Searching memory for available pages 
+        alias count S8;
+        count = 0;
+        i = 0;
+        while(i < 64) do 
+            if([MEM_LIST + i] == 0) then    
+                count = count + 1;
+                if(count >= diffPages) then 
+                    break;
+                endif;
+            endif;
+            i = i + 1;
+        endwhile;
+
+        //Not Enough Pages found 
+        if(i >= 64) then 
+            [physicalSp - 2] = -1;
+            ireturn;
+        endif;
+        
+        //Allocating new pages 
+        alias index S9;
+        index = validCodePages;
+        i = 0;
+        count = diffPages;
+        while(i < 64 && count != 0) do 
+            if([MEM_LIST + i] == 0) then 
+                [PTBR + 2 * index + 0] = i;
+                [MEM_LIST + i] = 1;         //Allocate 
+                [PTBR + 2 * i + 1] = "01";
+                count = count - count;
+                index = index + 1;
+            endif;
+            i = i + 1;
+        endwhile;
+    endif;
+
+    //Now Pages are Equal
+
+    //Load all code blocks 
+        i = 0;
+        alias indexPTBR S10;
+        indexPTBR = 0;
+        alias pageNumber S5;
+        while(i < 512 && [512 + i] != -1) do 
+            pageNumber = [PTBR + indexPTBR * 2 + 0];
+            load (pageNumber,[512 + i]);
+            indexPTBR = indexPTBR + 1;
+            i = i + 1;
+        endwhile;
+
+        //Setting New SP
+        SP = 3 * 512;
+
+        //Setting New IP
+        alias physicalNewSp S6;
+        physicalNewSp = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+        [physicalNewSp] = 0;
+        ireturn;
+
+
+endif;
+
+ireturn;
